@@ -1,0 +1,38 @@
+apply plugin: 'base'
+
+group = 'com.axway.apigw'
+version = '7.7.0.202508'
+
+subprojects {
+	apply plugin: 'eclipse'
+
+	group = 'com.axway.apigw'
+	version = '7.7.0.202508'
+}
+
+evaluationDependsOn(':apigw-otel-instrumentation')
+evaluationDependsOn(':apigw-otel-runtime')
+
+tasks.register('collectAgentArtifacts', Copy) {
+    group = 'build'
+    
+    // 1. Rename and copy the standard jar
+    from(project(':apigw-otel-runtime').tasks.named('jar')) {
+        rename(/(.*)\.jar/, '$1-helpers.jar')
+    }
+
+    // 2. Copy the shadow jar (already has the 'extension' classifier)
+    from(
+        project(':apigw-otel-instrumentation')
+            .tasks.named('shadowJar')
+            .flatMap { it.archiveFile }
+    )
+
+    into(rootProject.layout.buildDirectory.dir("${buildDir}/libs"))
+}
+
+build.dependsOn collectAgentArtifacts
+
+clean {
+	delete "${buildDir}"
+}

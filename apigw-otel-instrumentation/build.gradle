@@ -1,0 +1,63 @@
+plugins {
+	id 'java'
+	id 'com.gradleup.shadow' version '9.1.0'
+
+	id 'io.opentelemetry.instrumentation.muzzle-generation' version "2.26.1-alpha"
+	id 'io.opentelemetry.instrumentation.muzzle-check' version "2.26.1-alpha"
+}
+
+apply from: rootProject.file("apigateway.gradle")
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(11))
+	}
+}
+
+configurations {
+	compileOnly.extendsFrom(apigw_dist)
+}
+
+String opentelemetry_version = "1.60.1"
+String opentelemetry_instrumentation_version = "2.26.1"
+
+dependencies {
+	implementation(platform("io.opentelemetry:opentelemetry-bom:${opentelemetry_version}"))
+	
+	// these serve as a test of the instrumentation boms
+	implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:${opentelemetry_instrumentation_version}"))
+	implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${opentelemetry_instrumentation_version}-alpha"))
+
+	/*
+	 Interfaces and SPIs that we implement. We use `compileOnly` dependency because during
+	 runtime all necessary classes are provided by javaagent itself.
+	 */
+	compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi:${opentelemetry_version}")
+	compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:${opentelemetry_instrumentation_version}")
+	compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api-incubator:${opentelemetry_instrumentation_version}-alpha")
+	compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:${opentelemetry_instrumentation_version}-alpha")
+
+	// Required for custom instrumentation
+	compileOnly("net.bytebuddy:byte-buddy:1.15.10")
+
+	// Annotation processor for automatic SPI registration
+	compileOnly "com.google.auto.service:auto-service:1.1.1"
+	annotationProcessor "com.google.auto.service:auto-service:1.1.1"
+
+	// Add any external dependencies with 'implementation' scope
+	compileOnly project(':apigw-otel-runtime')
+	
+	//TODO remove when start using io.opentelemetry.instrumentation.javaagent-instrumentation plugin
+	codegen "io.opentelemetry.javaagent:opentelemetry-javaagent-tooling:${opentelemetry_instrumentation_version}-alpha"
+	muzzleBootstrap "io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations-support:${opentelemetry_instrumentation_version}-alpha"
+	muzzleTooling "io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:${opentelemetry_instrumentation_version}-alpha"
+	muzzleTooling "io.opentelemetry.javaagent:opentelemetry-javaagent-tooling:${opentelemetry_instrumentation_version}-alpha"
+}
+
+tasks.shadowJar {
+	mergeServiceFiles()
+
+	archiveClassifier = 'extension'
+
+	zip64 = true
+}

@@ -1,0 +1,21 @@
+plugins {
+	id 'java'
+}
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(11))
+	}
+}
+
+apply from: rootProject.file("apigateway.gradle")
+
+configurations {
+	compileOnly.extendsFrom(apigw_dist)
+}
+
+dependencies {
+	// Annotation processor for automatic SPI registration
+	compileOnly "com.google.auto.service:auto-service:1.1.1"
+	annotationProcessor "com.google.auto.service:auto-service:1.1.1"
+}
